@@ -1,0 +1,9 @@
+network:
+  allow:
+    - "https://docs.oracle.com/**"
+    - "https://github.com/tuo-org/**"
+    - "https://pypi.org/simple/**"
+  block_all_others: true
+  methods: ["GET","HEAD"]
+  rate_limit_per_minute: 30
+  max_total_requests: 100

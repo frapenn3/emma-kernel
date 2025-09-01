@@ -1,0 +1,30 @@
+<!doctype html><html><head><meta charset="utf-8"/><title>Emma Kernel Console</title>
+<style>body{font-family:sans-serif;max-width:900px;margin:24px auto} .card{border:1px solid #ddd;border-radius:12px;padding:16px;margin:12px 0}
+.btn{padding:8px 12px;border:0;border-radius:8px;background:#111;color:#fff;cursor:pointer;margin-right:6px}
+.badge{padding:4px 8px;border-radius:8px;background:#eee}</style></head>
+<body>
+<h1>Emma Kernel — Console</h1>
+<div id="status" class="card">Loading…</div>
+<div id="proposals"></div>
+<script>
+async function load(){
+  const s = await fetch('/kernel/status').then(r=>r.json());
+  document.getElementById('status').innerHTML = `<b>State:</b> <span class=badge>${s.state}</span> — <b>Open proposals:</b> ${s.openProposals?.length||0}`;
+  const wrap = document.getElementById('proposals'); wrap.innerHTML='';
+  (s.openProposals||[]).forEach(p=>{
+    const d=document.createElement('div'); d.className='card';
+    d.innerHTML = `<h3>${p.id}</h3><p><b>Objective:</b> ${p.objective||'-'}</p>
+      <button class=btn onclick="approve('${p.id}','YES')">YES</button>
+      <button class=btn onclick="approve('${p.id}','NO')">NO</button>`;
+    wrap.appendChild(d);
+  });
+}
+async function approve(id, vote){
+  await fetch(`/kernel/proposals/${id}/approve`,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({"name":vote})
+  }); load();
+}
+load();
+</script>
+</body></html>

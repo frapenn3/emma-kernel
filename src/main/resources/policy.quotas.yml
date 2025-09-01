@@ -1,0 +1,4 @@
+quotas:
+  cpu_time_sec: 600
+  memory_mb: 2048
+  processes: 128

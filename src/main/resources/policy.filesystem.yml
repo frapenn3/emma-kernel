@@ -1,0 +1,7 @@
+filesystem:
+  writable:
+    - "/work/projects/**"
+    - "/work/tmp/**"
+  read_only:
+    - "/models/**"
+    - "/configs/**"
