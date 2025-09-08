@@ -1,9 +1,17 @@
-network:
-  allow:
-    - "https://docs.oracle.com/**"
-    - "https://github.com/tuo-org/**"
-    - "https://pypi.org/simple/**"
-  block_all_others: true
-  methods: ["GET","HEAD"]
-  rate_limit_per_minute: 30
-  max_total_requests: 100
+rules:
+  - op: [CONNECT]
+    host: "localhost"
+    port: 8080
+    effect: ALLOW
+    reason: "local dev"
+
+  - op: [CONNECT]
+    host: "google.com"
+    port: 443
+    effect: DENY
+    reason: "blocked google"
+
+  - op: [DNS]
+    host: "*"
+    effect: DENY
+    reason: "no DNS"

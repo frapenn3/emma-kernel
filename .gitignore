@@ -1,0 +1,31 @@
+# === Build output ===
+/target/
+*.class
+
+# === IDE specific ===
+# Eclipse
+.classpath
+.project
+.settings/
+# IntelliJ
+.idea/
+*.iml
+*.iws
+out/
+
+# === Logs ===
+*.log
+
+# === OS generated ===
+.DS_Store
+Thumbs.db
+
+# === Local runtime data ===
+/work/
+
+# === Maven wrapper ===
+.mvn/
+!/.mvn/wrapper/maven-wrapper.jar
+
+# === Backup files ===
+*~

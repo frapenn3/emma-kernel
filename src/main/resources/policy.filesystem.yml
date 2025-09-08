@@ -1,7 +1,19 @@
-filesystem:
-  writable:
-    - "/work/projects/**"
-    - "/work/tmp/**"
-  read_only:
-    - "/models/**"
-    - "/configs/**"
+version: 1
+rules:
+  # Consenti lettura dei file .txt dentro work/
+  - op: [READ]
+    path: "work/**/*.txt"
+    effect: ALLOW
+    reason: "txt sotto work sono liberi"
+
+  # Chiedi consenso per scrivere o cancellare in work/
+  - op: [WRITE, DELETE]
+    path: "work/**"
+    effect: ASK
+    reason: "serve consenso per modificare work"
+
+  # Nega qualsiasi altra cosa
+  - op: ["*"]
+    path: "**"
+    effect: DENY
+    reason: "default deny"

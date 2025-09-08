@@ -1,4 +1,16 @@
-quotas:
-  cpu_time_sec: 600
-  memory_mb: 2048
-  processes: 128
+# src/main/resources/policy.quotas.yml
+
+# finestra temporale a contatori fissi (in secondi)
+window_seconds: 60
+
+# limiti massimi cumulati all'interno della finestra per metrica
+limits:
+  # numero massimo richieste di rete (somma degli "incrementi" inviati)
+  net_requests: 100
+  # core-minuti massimi (esempio: 2 core usati per 10 minuti = 20)
+  cpu_cores: 200
+  # minuti massimi di tempo totale
+  time_min: 300
+
+# opzionale: messaggi/descrizioni
+reason_prefix: "quota exceeded"
