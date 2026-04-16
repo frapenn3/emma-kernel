@@ -102,6 +102,7 @@ public class PolicyResource {
   
   @POST
   @Path("/reload")
+  @Consumes(MediaType.WILDCARD)
   public Response reload() {
     enforcer.reload();
     return Response.ok(new CheckResult("OK", "policy reloaded")).build();
@@ -115,6 +116,7 @@ public class PolicyResource {
 
   @POST
   @Path("/quotas/reset")
+  @Consumes(MediaType.WILDCARD)
   public Response quotasReset() {
     enforcer.getQuotaTracker().reset();
     return Response.ok().build();
