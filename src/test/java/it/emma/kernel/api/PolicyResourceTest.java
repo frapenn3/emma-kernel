@@ -39,6 +39,7 @@ class PolicyResourceTest {
 
     assertEquals(400, response.getStatus());
     PolicyResource.ErrorResponse error = assertInstanceOf(PolicyResource.ErrorResponse.class, response.getEntity());
+    assertEquals("MISSING_PATH", error.code);
     assertEquals("Missing 'path'", error.error);
   }
 
@@ -48,6 +49,7 @@ class PolicyResourceTest {
 
     assertEquals(400, response.getStatus());
     PolicyResource.ErrorResponse error = assertInstanceOf(PolicyResource.ErrorResponse.class, response.getEntity());
+    assertEquals("INVALID_OPERATION", error.code);
     assertEquals("Invalid 'op' (CONNECT|DNS)", error.error);
   }
 

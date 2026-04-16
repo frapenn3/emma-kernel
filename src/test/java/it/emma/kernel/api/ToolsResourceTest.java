@@ -33,6 +33,7 @@ class ToolsResourceTest {
 
     assertEquals(400, response.getStatus());
     ToolsResource.ErrorResponse error = assertInstanceOf(ToolsResource.ErrorResponse.class, response.getEntity());
+    assertEquals("MISSING_PATH", error.code);
     assertEquals("Missing 'path'", error.error);
   }
 
@@ -49,6 +50,7 @@ class ToolsResourceTest {
 
     assertEquals(423, response.getStatus());
     ToolsResource.ErrorResponse error = assertInstanceOf(ToolsResource.ErrorResponse.class, response.getEntity());
+    assertEquals("APPROVAL_REQUIRED", error.code);
     assertEquals("explicit approval required", error.error);
   }
 
@@ -65,6 +67,7 @@ class ToolsResourceTest {
 
     assertEquals(423, response.getStatus());
     ToolsResource.ErrorResponse error = assertInstanceOf(ToolsResource.ErrorResponse.class, response.getEntity());
+    assertEquals("PATH_OUTSIDE_WORKDIR", error.code);
     assertEquals("path escapes work directory", error.error);
   }
 
@@ -79,6 +82,7 @@ class ToolsResourceTest {
 
     assertEquals(500, response.getStatus());
     ToolsResource.ErrorResponse error = assertInstanceOf(ToolsResource.ErrorResponse.class, response.getEntity());
+    assertEquals("INTERNAL_ERROR", error.code);
     assertEquals("java.lang.IllegalStateException: boom", error.error);
   }
 

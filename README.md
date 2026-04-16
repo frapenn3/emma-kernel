@@ -46,6 +46,7 @@ Esempio risposta di rifiuto:
 
 ```json
 {
+  "code": "APPROVAL_REQUIRED",
   "error": "explicit approval required"
 }
 ```
@@ -54,3 +55,4 @@ Esempio risposta di rifiuto:
 
 - `POST /kernel/policy/check/quota` valuta i limiti senza incrementare i contatori.
 - `POST /kernel/tools/write` e i controlli runtime di rete/quota richiedono `approval` esplicito quando una regola restituisce `ASK`.
+- I payload errore espongono anche `code` per distinguere casi come `APPROVAL_REQUIRED`, `APPROVAL_REJECTED`, `POLICY_DENIED`, `KERNEL_STOPPED`.

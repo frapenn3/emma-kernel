@@ -2,6 +2,7 @@ package it.emma.kernel.core;
 
 import it.emma.kernel.dto.Approval;
 import it.emma.kernel.dto.ProposalSummary;
+import org.jboss.logging.Logger;
 import jakarta.enterprise.context.ApplicationScoped;
 
 /**
@@ -11,6 +12,7 @@ import jakarta.enterprise.context.ApplicationScoped;
  */
 @ApplicationScoped
 public class LocalConsentGate extends ConsentGate {
+  private static final Logger LOG = Logger.getLogger(LocalConsentGate.class);
 
   @Override
   public Approval request(String id, ProposalSummary summary, Approval requested) {
@@ -18,7 +20,7 @@ public class LocalConsentGate extends ConsentGate {
     // log, prompt su console, regole ad hoc, ecc.
     // Per ora: se non è già specificato, approviamo (YES) e lasciamo una traccia nei log.
     Approval finalDecision = (requested != null) ? requested : Approval.NO;
-    System.out.printf("[ConsentGate] id=%s objective=%s -> %s%n",
+    LOG.infof("Consent decision id=%s objective=%s -> %s",
         id, summary != null ? summary.objective : "n/a",
         finalDecision);
 

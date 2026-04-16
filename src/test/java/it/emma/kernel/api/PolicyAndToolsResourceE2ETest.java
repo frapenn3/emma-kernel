@@ -50,6 +50,7 @@ class PolicyAndToolsResourceE2ETest {
         .post("/kernel/tools/write")
     .then()
         .statusCode(423)
+        .body("code", equalTo("APPROVAL_REQUIRED"))
         .body("error", equalTo("explicit approval required"));
   }
 
