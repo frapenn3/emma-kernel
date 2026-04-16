@@ -11,6 +11,7 @@ import it.emma.kernel.policy.net.NetPolicyEngine;
 import it.emma.kernel.policy.net.NetPolicyModel;
 import it.emma.kernel.policy.quota.QuotaPolicyEngine;
 import it.emma.kernel.policy.quota.QuotaPolicyModel;
+import it.emma.kernel.policy.quota.QuotaTracker;
 import it.emma.kernel.core.ConsentGate;
 import it.emma.kernel.dto.Approval;
 import it.emma.kernel.dto.ProposalSummary;
@@ -24,7 +25,6 @@ public class PolicyEnforcer {
 
   private volatile PolicyModel model;
   private volatile Instant lastReload;
-  private final QuotaTracker quotas = new QuotaTracker();
 
   // Engines (inizializzati una volta e ricaricati)
   private final FsPolicyEngine fsEngine = new FsPolicyEngine();
@@ -146,6 +146,6 @@ public class PolicyEnforcer {
   }
   
 //in PolicyEnforcer
-public QuotaTracker getQuotaTracker() { return quotas; }
+public QuotaTracker getQuotaTracker() { return quotaEngine.getTracker(); }
 
 }

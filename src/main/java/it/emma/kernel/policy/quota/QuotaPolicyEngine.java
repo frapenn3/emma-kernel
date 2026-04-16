@@ -13,6 +13,10 @@ public class QuotaPolicyEngine {
     tracker.configure(this.model.window_seconds);
   }
 
+  public QuotaTracker getTracker() {
+    return tracker;
+  }
+
   /**
    * Valuta una richiesta QUOTA_CONSUME.
    * Parametri letti dall'Action:
