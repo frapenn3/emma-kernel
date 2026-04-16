@@ -37,7 +37,7 @@ public class PolicyEnforcer {
   }
 
   public synchronized void reload() {
-    var constitution = loadYaml("constitution.yml", Object.class);
+    var constitution = loadYaml("constitution.yml", ConstitutionModel.class);
     var fsPolicy     = loadYaml("policy.filesystem.yml", FsPolicyModel.class);
     var netPolicy    = loadYaml("policy.network.yml", NetPolicyModel.class);
     var quotasPolicy = loadYaml("policy.quotas.yml", QuotaPolicyModel.class);
@@ -141,11 +141,11 @@ public class PolicyEnforcer {
   public PolicyModel getModel() { return model; }
 
   public static final class PolicyModel {
-    public final Object constitution;
-    public final Object fs;
-    public final Object net;
-    public final Object quotas;
-    public PolicyModel(Object c, Object f, Object n, Object q) {
+    public final ConstitutionModel constitution;
+    public final FsPolicyModel fs;
+    public final NetPolicyModel net;
+    public final QuotaPolicyModel quotas;
+    public PolicyModel(ConstitutionModel c, FsPolicyModel f, NetPolicyModel n, QuotaPolicyModel q) {
       this.constitution = c; this.fs = f; this.net = n; this.quotas = q;
     }
   }
