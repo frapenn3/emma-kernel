@@ -7,7 +7,7 @@ public final class Action {
   public enum Type {
     FS_READ, FS_WRITE, FS_DELETE,
     NET_CONNECT, NET_DNS,
-    QUOTA_CONSUME
+    QUOTA_CHECK, QUOTA_CONSUME
   }
 
   public Type type;

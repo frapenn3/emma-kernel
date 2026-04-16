@@ -21,6 +21,6 @@ public class ConsentGate {
    */
   public Approval request(String id, ProposalSummary summary, Approval requested) {
     // Comportamento di default: se il chiamante non ha già deciso, approviamo.
-    return (requested != null) ? requested : Approval.YES;
+    return (requested != null) ? requested : Approval.NO;
   }
 }

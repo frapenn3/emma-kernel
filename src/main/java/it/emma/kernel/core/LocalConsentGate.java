@@ -17,10 +17,11 @@ public class LocalConsentGate extends ConsentGate {
     // Qui puoi mettere la logica “reale” per l’ambiente locale:
     // log, prompt su console, regole ad hoc, ecc.
     // Per ora: se non è già specificato, approviamo (YES) e lasciamo una traccia nei log.
+    Approval finalDecision = (requested != null) ? requested : Approval.NO;
     System.out.printf("[ConsentGate] id=%s objective=%s -> %s%n",
         id, summary != null ? summary.objective : "n/a",
-        requested != null ? requested : Approval.YES);
+        finalDecision);
 
-    return (requested != null) ? requested : Approval.YES;
+    return finalDecision;
   }
 }

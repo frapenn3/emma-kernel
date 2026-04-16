@@ -82,6 +82,10 @@ public class PolicyEnforcer {
         raw = netEngine.decide(action.type, host, port);
         break;
       }
+      case QUOTA_CHECK: {
+        raw = quotaEngine.inspect(action);
+        break;
+      }
       case QUOTA_CONSUME: {
         raw = quotaEngine.decide(action);
         break;
@@ -128,6 +132,7 @@ public class PolicyEnforcer {
       case NET_CONNECT, NET_DNS ->
           "network " + action.type.name() + " host=" + action.getString("host", "") +
               " port=" + action.getString("port", "");
+      case QUOTA_CHECK -> "quota check";
       case QUOTA_CONSUME -> "quota consume";
     };
   }

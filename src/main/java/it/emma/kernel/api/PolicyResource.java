@@ -96,7 +96,7 @@ public class PolicyResource {
       if (consume.cpu_cores   != null) p.put("cpu_cores",   consume.cpu_cores);
       if (consume.time_min    != null) p.put("time_min",    consume.time_min);
     }
-    Decision d = enforcer.check(new Action(Action.Type.QUOTA_CONSUME, p));
+    Decision d = enforcer.check(new Action(Action.Type.QUOTA_CHECK, p));
     return Response.ok(new CheckResult(d.effect.name(), d.reason)).build();
   }
   
