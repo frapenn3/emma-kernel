@@ -19,7 +19,6 @@ import it.emma.kernel.dto.ProposalSummary;
 import it.emma.kernel.persist.AuditRepo;
 import it.emma.kernel.persist.ProposalDoc;
 import it.emma.kernel.persist.ProposalRepo;
-import it.emma.kernel.policy.PolicyLoader;
 import it.emma.kernel.policy.PolicyEnforcer;
 import it.emma.kernel.policy.Action;
 import it.emma.kernel.policy.Decision;
@@ -52,7 +51,6 @@ public class KernelResource {
   @Inject KernelGuard   guard;
   @Inject ProposalRepo  repo;
   @Inject AuditRepo     auditRepo;
-  @Inject PolicyLoader  loader;
   @Inject PolicyEnforcer enforcer;
 
 

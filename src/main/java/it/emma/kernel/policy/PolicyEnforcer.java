@@ -149,8 +149,6 @@ public class PolicyEnforcer {
       this.constitution = c; this.fs = f; this.net = n; this.quotas = q;
     }
   }
-  
-//in PolicyEnforcer
-public QuotaTracker getQuotaTracker() { return quotaEngine.getTracker(); }
+  public QuotaTracker getQuotaTracker() { return quotaEngine.getTracker(); }
 
 }
