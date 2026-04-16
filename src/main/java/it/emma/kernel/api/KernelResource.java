@@ -19,7 +19,6 @@ import it.emma.kernel.dto.ProposalSummary;
 import it.emma.kernel.persist.AuditRepo;
 import it.emma.kernel.persist.ProposalDoc;
 import it.emma.kernel.persist.ProposalRepo;
-import it.emma.kernel.policy.PolicyLoader;
 import it.emma.kernel.policy.PolicyEnforcer;
 import it.emma.kernel.policy.Action;
 import it.emma.kernel.policy.Decision;
@@ -52,7 +51,6 @@ public class KernelResource {
   @Inject KernelGuard   guard;
   @Inject ProposalRepo  repo;
   @Inject AuditRepo     auditRepo;
-  @Inject PolicyLoader  loader;
   @Inject PolicyEnforcer enforcer;
 
 
@@ -105,14 +103,14 @@ public class KernelResource {
   @Path("/proposals")
   public Response submit(Proposal p) {
     if (guard.isStopped()) {
-      return error(423, "Kernel stopped by killswitch");
+      return error(423, "KERNEL_STOPPED", "Kernel stopped by killswitch");
     }
     if (p == null || p.id == null || p.id.isBlank()) {
-      return error(400, "Proposal must have a non-empty 'id'");
+      return error(400, "MISSING_PROPOSAL_ID", "Proposal must have a non-empty 'id'");
     }
     ProposalDoc existing = repo.findById(p.id);
     if (existing != null) {
-      return error(409, "Duplicate id: " + p.id);
+      return error(409, "DUPLICATE_PROPOSAL_ID", "Duplicate id: " + p.id);
     }
 
     ProposalDoc d = toDoc(p);
@@ -130,12 +128,12 @@ public class KernelResource {
   @Path("/proposals/{id}/approve")
   public Response approve(@PathParam("id") String id, String body) {
     if (guard.isStopped()) {
-      return error(423, "Kernel stopped by killswitch");
+      return error(423, "KERNEL_STOPPED", "Kernel stopped by killswitch");
     }
 
     ProposalDoc d = repo.findById(id);
     if (d == null) {
-      return error(404, "Unknown proposal id: " + id);
+      return error(404, "PROPOSAL_NOT_FOUND", "Unknown proposal id: " + id);
     }
 
     String b = (body == null) ? "" : body.trim().replace("\"", "");
@@ -143,7 +141,7 @@ public class KernelResource {
     try {
       requested = Approval.valueOf(b);
     } catch (Exception e) {
-      return error(400, "Body must be YES or NO");
+      return error(400, "INVALID_APPROVAL", "Body must be YES or NO");
     }
 
     Proposal p = toDto(d);
@@ -222,7 +220,7 @@ public class KernelResource {
         p.put("path", "audit.log");
         Decision dec = enforcer.check(new Action(Action.Type.FS_READ, p));
         if (dec.effect == Decision.Effect.DENY) {
-          return error(423, "Policy DENY: " + dec.reason);
+          return error(423, "POLICY_DENIED", "Policy DENY: " + dec.reason);
         }
         // ASK è gestito dentro l'enforcer via ConsentGate → qui arriva già ALLOW/DENY finale
 
@@ -236,7 +234,7 @@ public class KernelResource {
 
       return ok(new AuditTail(lines));
     } catch(Exception e){
-      return error(500, e.toString());
+      return error(500, "INTERNAL_ERROR", e.toString());
     }
   }
 
@@ -363,9 +361,11 @@ public class KernelResource {
   }
 
   public static final class ErrorResponse {
+    public String code;
     public String error;
     public ErrorResponse() {}
     public ErrorResponse(String error) { this.error = error; }
+    public ErrorResponse(String code, String error) { this.code = code; this.error = error; }
   }
 
   // -------------------- Response helpers --------------------
@@ -374,7 +374,7 @@ public class KernelResource {
     return Response.ok(entity).build();
   }
 
-  private Response error(int code, String msg){
-    return Response.status(code).entity(new ErrorResponse(msg)).build();
+  private Response error(int code, String errorCode, String msg){
+    return Response.status(code).entity(new ErrorResponse(errorCode, msg)).build();
   }
 }

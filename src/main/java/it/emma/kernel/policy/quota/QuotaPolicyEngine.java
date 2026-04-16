@@ -26,6 +26,14 @@ public class QuotaPolicyEngine {
    *  - "time_min"    (Integer) incremento
    */
   public Decision decide(Action a) {
+    return evaluate(a, true);
+  }
+
+  public Decision inspect(Action a) {
+    return evaluate(a, false);
+  }
+
+  private Decision evaluate(Action a, boolean consume) {
     if (a == null) return new Decision(Decision.Effect.DENY, "invalid action");
 
     final String subject = a.getString("subject", "global");
@@ -39,7 +47,8 @@ public class QuotaPolicyEngine {
 
     // net_requests
     if (incNet > 0) {
-      long total = tracker.addAndGet(subject, "net_requests", incNet);
+      long total = consume ? tracker.addAndGet(subject, "net_requests", incNet)
+          : tracker.current(subject, "net_requests") + incNet;
       if (limits.net_requests != null && total > limits.net_requests) {
         return deny("net_requests", total, limits.net_requests);
       }
@@ -47,7 +56,8 @@ public class QuotaPolicyEngine {
 
     // cpu_cores
     if (incCpu > 0) {
-      long total = tracker.addAndGet(subject, "cpu_cores", incCpu);
+      long total = consume ? tracker.addAndGet(subject, "cpu_cores", incCpu)
+          : tracker.current(subject, "cpu_cores") + incCpu;
       if (limits.cpu_cores != null && total > limits.cpu_cores) {
         return deny("cpu_cores", total, limits.cpu_cores);
       }
@@ -55,13 +65,14 @@ public class QuotaPolicyEngine {
 
     // time_min
     if (incTime > 0) {
-      long total = tracker.addAndGet(subject, "time_min", incTime);
+      long total = consume ? tracker.addAndGet(subject, "time_min", incTime)
+          : tracker.current(subject, "time_min") + incTime;
       if (limits.time_min != null && total > limits.time_min) {
         return deny("time_min", total, limits.time_min);
       }
     }
 
-    return new Decision(Decision.Effect.ALLOW, "quota ok");
+    return new Decision(Decision.Effect.ALLOW, consume ? "quota ok" : "quota check ok");
   }
 
   private Decision deny(String metric, long value, long limit) {

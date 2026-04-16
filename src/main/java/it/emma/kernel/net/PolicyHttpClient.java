@@ -80,6 +80,8 @@ public class PolicyHttpClient {
     java.util.HashMap<String,Object> pNet = new java.util.HashMap<String,Object>();
     pNet.put("host", host);
     pNet.put("port", port);
+    pNet.put("subject", "policy-http-client:net-connect");
+    pNet.put("require_explicit_approval", true);
     Decision d1 = enforcer.check(new Action(Action.Type.NET_CONNECT, pNet));
     if (d1.effect == Decision.Effect.DENY) {
       throw new PolicyDeniedException("Network policy DENY: " + d1.reason);
@@ -87,7 +89,9 @@ public class PolicyHttpClient {
 
     // 2) Quota: net_requests +1
     java.util.HashMap<String,Object> pQuota = new java.util.HashMap<String,Object>();
+    pQuota.put("subject", "policy-http-client:quota");
     pQuota.put("net_requests", Integer.valueOf(1));
+    pQuota.put("require_explicit_approval", true);
     Decision d2 = enforcer.check(new Action(Action.Type.QUOTA_CONSUME, pQuota));
     if (d2.effect == Decision.Effect.DENY) {
       throw new PolicyDeniedException("Quota DENY: " + d2.reason);

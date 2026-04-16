@@ -40,14 +40,14 @@ public class PolicyResource {
       @QueryParam("path") String path) {
 
     if (path == null || path.isBlank()) {
-      return Response.status(400).entity(new ErrorResponse("Missing 'path'")).build();
+      return Response.status(400).entity(new ErrorResponse("MISSING_PATH", "Missing 'path'")).build();
     }
 
     Action.Type t;
     if ("READ".equalsIgnoreCase(op))      t = Action.Type.FS_READ;
     else if ("WRITE".equalsIgnoreCase(op)) t = Action.Type.FS_WRITE;
     else if ("DELETE".equalsIgnoreCase(op))t = Action.Type.FS_DELETE;
-    else return Response.status(400).entity(new ErrorResponse("Invalid 'op' (READ|WRITE|DELETE)")).build();
+    else return Response.status(400).entity(new ErrorResponse("INVALID_OPERATION", "Invalid 'op' (READ|WRITE|DELETE)")).build();
 
     HashMap<String,Object> p = new HashMap<String,Object>();
     p.put("path", path);
@@ -64,13 +64,13 @@ public class PolicyResource {
       @QueryParam("port") Integer port) {
 
     if (host == null || host.isBlank()) {
-      return Response.status(400).entity(new ErrorResponse("Missing 'host'")).build();
+      return Response.status(400).entity(new ErrorResponse("MISSING_HOST", "Missing 'host'")).build();
     }
 
     Action.Type t;
     if ("CONNECT".equalsIgnoreCase(op)) t = Action.Type.NET_CONNECT;
     else if ("DNS".equalsIgnoreCase(op)) t = Action.Type.NET_DNS;
-    else return Response.status(400).entity(new ErrorResponse("Invalid 'op' (CONNECT|DNS)")).build();
+    else return Response.status(400).entity(new ErrorResponse("INVALID_OPERATION", "Invalid 'op' (CONNECT|DNS)")).build();
 
     HashMap<String,Object> p = new HashMap<String,Object>();
     p.put("host", host);
@@ -96,12 +96,13 @@ public class PolicyResource {
       if (consume.cpu_cores   != null) p.put("cpu_cores",   consume.cpu_cores);
       if (consume.time_min    != null) p.put("time_min",    consume.time_min);
     }
-    Decision d = enforcer.check(new Action(Action.Type.QUOTA_CONSUME, p));
+    Decision d = enforcer.check(new Action(Action.Type.QUOTA_CHECK, p));
     return Response.ok(new CheckResult(d.effect.name(), d.reason)).build();
   }
   
   @POST
   @Path("/reload")
+  @Consumes(MediaType.WILDCARD)
   public Response reload() {
     enforcer.reload();
     return Response.ok(new CheckResult("OK", "policy reloaded")).build();
@@ -115,6 +116,7 @@ public class PolicyResource {
 
   @POST
   @Path("/quotas/reset")
+  @Consumes(MediaType.WILDCARD)
   public Response quotasReset() {
     enforcer.getQuotaTracker().reset();
     return Response.ok().build();
@@ -123,8 +125,10 @@ public class PolicyResource {
 
   // Reuse dall’altro resource
   public static final class ErrorResponse {
+    public String code;
     public String error;
     public ErrorResponse() {}
     public ErrorResponse(String error) { this.error = error; }
+    public ErrorResponse(String code, String error) { this.code = code; this.error = error; }
   }
 }

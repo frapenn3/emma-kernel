@@ -7,6 +7,8 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 
+import org.jboss.logging.Logger;
+
 import it.emma.kernel.dto.AuditEntry;
 import it.emma.kernel.policy.Action;
 import it.emma.kernel.policy.Decision;
@@ -21,6 +23,7 @@ import jakarta.inject.Inject;
  */
 @ApplicationScoped
 public class FileAuditLog implements AuditLog {
+  private static final Logger LOG = Logger.getLogger(FileAuditLog.class);
 
   private static final String AUDIT_FILE = "audit.log";
 
@@ -39,7 +42,7 @@ public class FileAuditLog implements AuditLog {
     params.put("path", AUDIT_FILE);
     Decision dec = enforcer.check(new Action(Action.Type.FS_WRITE, params));
     if (dec.effect == Decision.Effect.DENY) {
-      System.err.println("[AuditFile][DENY] " + dec.reason + " (skip write)");
+      LOG.warnf("Audit write denied: %s (skip write)", dec.reason);
       return;
     }
 
@@ -60,7 +63,7 @@ public class FileAuditLog implements AuditLog {
           java.nio.file.StandardOpenOption.APPEND
       );
     } catch (IOException ioe) {
-      System.err.println("[AuditFile][ERROR] " + ioe.toString());
+      LOG.errorf(ioe, "Audit file write failed");
     }
   }
 
