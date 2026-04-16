@@ -1,6 +1,7 @@
 package it.emma.kernel.api;
 
 import it.emma.kernel.tools.FileTool;
+import it.emma.kernel.dto.Approval;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
@@ -23,6 +24,7 @@ public class ToolsResource {
   public static final class WriteRequest {
     public String path;     // es: "hello/hello.txt"
     public String content;  // es: "Emma online"
+    public Approval approval; // YES/NO esplicito per policy ASK
   }
 
   // POST /kernel/tools/write  body: {"path":"hello.txt","content":"Emma online"}
@@ -33,9 +35,9 @@ public class ToolsResource {
       if (req == null || req.path == null || req.path.isBlank()) {
         return Response.status(400).entity(new ErrorResponse("Missing 'path'")).build();
       }
-      FileTool.WriteResult r = files.writeInWork(req.path, req.content);
+      FileTool.WriteResult r = files.writeInWork(req.path, req.content, req.approval);
       if (!"OK".equals(r.status)) {
-        return Response.status(423).entity(new ErrorResponse("Policy DENY or kernel stopped")).build();
+        return Response.status(423).entity(new ErrorResponse(r.reason)).build();
       }
       return Response.ok(r).build();
     } catch (SecurityException se) {
