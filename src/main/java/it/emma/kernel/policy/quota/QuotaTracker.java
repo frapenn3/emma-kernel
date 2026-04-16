@@ -5,10 +5,14 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
+import it.emma.kernel.policy.QuotaSnapshot;
+import jakarta.enterprise.context.ApplicationScoped;
+
 /**
  * Quota tracker a finestra fissa (fixed window). Per ogni (subject, metric) tiene un contatore
  * che si azzera quando la finestra scade.
  */
+@ApplicationScoped
 public class QuotaTracker {
 
   static final class Counter {
@@ -63,6 +67,25 @@ public class QuotaTracker {
       return 0L;
     }
     return c.value.get();
+  }
+
+  public QuotaSnapshot snapshot() {
+    QuotaSnapshot s = new QuotaSnapshot();
+    s.net_requests = safeInt(current("global", "net_requests"));
+    s.cpu_cores = safeInt(current("global", "cpu_cores"));
+    s.time_min = current("global", "time_min");
+    s.uptime_sec = 0L;
+    return s;
+  }
+
+  public void reset() {
+    map.clear();
+  }
+
+  private static int safeInt(long value) {
+    if (value > Integer.MAX_VALUE) return Integer.MAX_VALUE;
+    if (value < Integer.MIN_VALUE) return Integer.MIN_VALUE;
+    return (int) value;
   }
 
   private static String key(String subject, String metric) {

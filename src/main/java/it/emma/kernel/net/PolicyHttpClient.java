@@ -12,7 +12,6 @@ import java.util.Map;
 import it.emma.kernel.policy.Action;
 import it.emma.kernel.policy.Decision;
 import it.emma.kernel.policy.PolicyEnforcer;
-import it.emma.kernel.policy.QuotaTracker;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
@@ -28,7 +27,6 @@ import jakarta.inject.Inject;
 public class PolicyHttpClient {
 
   @Inject PolicyEnforcer enforcer;
-  @Inject QuotaTracker   quota;
 
   private final HttpClient client;
 
