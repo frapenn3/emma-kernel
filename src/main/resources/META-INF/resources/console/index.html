@@ -2,127 +2,360 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Emma Kernel — Console</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Emma Kernel — Control Console</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { font-family: sans-serif; margin: 2rem; }
-    h1 { margin-bottom: 1rem; }
-    .badge {
-      display: inline-block;
-      padding: 0.2rem 0.5rem;
-      border-radius: 0.5rem;
-      font-size: 0.8rem;
-      font-weight: bold;
-      background: #e5e7eb;
-      color: #111827;
-    }
-    .btn {
-      display: inline-block;
-      margin: 0.25rem;
-      padding: 0.4rem 0.8rem;
-      border-radius: 0.4rem;
-      background: #111;
-      color: #fff;
-      font-weight: bold;
-      border: none;
-      cursor: pointer;
-    }
-    .btn:disabled {
-      opacity: .5;
-      cursor: not-allowed;
-    }
-    .muted { color: #6b7280; }
-    pre {
-      background: #f3f4f6;
-      padding: 0.5rem;
-      border-radius: 0.4rem;
-      font-size: 0.85rem;
-      max-height: 200px;
-      overflow-y: auto;
-    }
-    .card {
-      border: 1px solid #e5e7eb;
-      border-radius: 0.6rem;
-      padding: 1rem;
-      margin-bottom: 1rem;
-    }
+    [v-cloak] { display: none; }
+    .tab-active { border-bottom-width: 2px; border-color: #2563eb; color: #2563eb; }
   </style>
 </head>
-<body>
-  <h1>Emma Kernel — Console</h1>
-  <div id="status"></div>
-  <h3>Audit (ultime righe)</h3>
-  <button class="btn" onclick="loadAudit()">Aggiorna</button>
-  <pre id="audit">Loading…</pre>
-  <div id="proposals"></div>
+<body class="bg-gray-50 text-gray-900 min-h-screen">
+  <div id="app" class="max-w-6xl mx-auto px-4 py-8">
+    <header class="flex justify-between items-center mb-8 border-b pb-4">
+      <div>
+        <h1 class="text-3xl font-bold tracking-tight text-gray-900">Emma Kernel</h1>
+        <p class="text-gray-500">Autonomous Improvement Engine — Management Console</p>
+      </div>
+      <div class="flex items-center space-x-4">
+        <div id="kernel-status-badge"></div>
+        <button onclick="doKill()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold transition">Kill Switch</button>
+        <button onclick="doResume()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold transition">Resume</button>
+      </div>
+    </header>
 
-<script>
-async function load() {
-  const r = await fetch('/kernel/status');
-  const s = await r.json();
+    <nav class="flex space-x-8 mb-8 border-b">
+      <button onclick="showTab('dashboard')" id="tab-dashboard" class="tab-btn pb-4 px-1 text-sm font-medium transition-all hover:text-blue-600">Dashboard</button>
+      <button onclick="showTab('proposals')" id="tab-proposals" class="tab-btn pb-4 px-1 text-sm font-medium transition-all hover:text-blue-600">Submit Proposal</button>
+      <button onclick="showTab('tester')" id="tab-tester" class="tab-btn pb-4 px-1 text-sm font-medium transition-all hover:text-blue-600">Policy Tester</button>
+      <button onclick="showTab('tools')" id="tab-tools" class="tab-btn pb-4 px-1 text-sm font-medium transition-all hover:text-blue-600">Tools</button>
+      <button onclick="showTab('audit')" id="tab-audit" class="tab-btn pb-4 px-1 text-sm font-medium transition-all hover:text-blue-600">Audit Log</button>
+    </nav>
 
-  const statusEl = document.getElementById('status');
-  statusEl.innerHTML = `
-    <b>State:</b> <span class="badge">${s.state || 'IDLE'}</span>
-    — <b>Open proposals:</b> ${(s.openProposals && s.openProposals.length) || 0}
-    &nbsp;&nbsp;
-    <button class="btn" style="background:#b91c1c" onclick="doKill()">Kill switch</button>
-    ${s.stopped ? '<span class="badge" style="background:#fee2e2;color:#991b1b;margin-left:8px">STOPPED</span>' : ''}
-    <!-- ${s.stopped ? '<button class="btn" style="background:#16a34a" onclick="doResume()">Resume</button>' : ''} -->
-  `;
+    <!-- DASHBOARD -->
+    <section id="content-dashboard" class="tab-content hidden">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-white p-6 rounded-xl shadow-sm border">
+          <h3 class="text-sm font-semibold text-gray-500 uppercase mb-1">Global State</h3>
+          <p id="global-state" class="text-2xl font-bold">-</p>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-sm border">
+          <h3 class="text-sm font-semibold text-gray-500 uppercase mb-1">Open Proposals</h3>
+          <p id="open-proposals-count" class="text-2xl font-bold">0</p>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-sm border">
+          <h3 class="text-sm font-semibold text-gray-500 uppercase mb-1">Policies</h3>
+          <button onclick="reloadPolicies()" class="text-blue-600 font-semibold hover:underline">Reload All</button>
+        </div>
+      </div>
 
-  const proposalsEl = document.getElementById('proposals');
-  proposalsEl.innerHTML = '';
-  if (s.openProposals && s.openProposals.length > 0) {
-    for (const p of s.openProposals) {
-      const st = s.proposalStates && s.proposalStates[p.id] || 'UNKNOWN';
-      const disabled = s.stopped ? 'disabled' : '';
-      const d = document.createElement('div');
-      d.className = 'card';
-      d.innerHTML = `
-        <h3 style="margin:0 0 8px 0">${p.id} <span class="badge">${st}</span></h3>
-        <p class="muted" style="margin:0 0 12px 0"><b>Objective:</b> ${p.objective || '-'}</p>
-        <button class="btn" ${disabled} onclick="approve('${p.id}','YES')">YES</button>
-        <button class="btn" ${disabled} onclick="approve('${p.id}','NO')">NO</button>
-      `;
-      proposalsEl.appendChild(d);
+      <h2 class="text-xl font-bold mb-4">Active Proposals</h2>
+      <div id="proposals-list" class="space-y-4">
+        <p class="text-gray-500 italic">Loading proposals...</p>
+      </div>
+    </section>
+
+    <!-- SUBMIT PROPOSAL -->
+    <section id="content-proposals" class="tab-content hidden">
+      <div class="bg-white p-8 rounded-xl shadow-sm border max-w-2xl">
+        <h2 class="text-xl font-bold mb-6">Submit New Proposal</h2>
+        <form id="proposal-form" onsubmit="submitProposal(event)" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Proposal ID</label>
+            <input type="text" id="prop-id" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2" placeholder="e.g. improve-optimizer-v1">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Objective</label>
+            <textarea id="prop-objective" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2" rows="2"></textarea>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Hypothesis</label>
+            <textarea id="prop-hypothesis" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2" rows="2"></textarea>
+          </div>
+          <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition">Submit Proposal</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- POLICY TESTER -->
+    <section id="content-tester" class="tab-content hidden">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <!-- FS Tester -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border">
+          <h2 class="text-lg font-bold mb-4">Filesystem Policy</h2>
+          <div class="space-y-4">
+            <select id="fs-op" class="block w-full rounded-md border-gray-300 border p-2">
+              <option value="READ">READ</option>
+              <option value="WRITE">WRITE</option>
+              <option value="DELETE">DELETE</option>
+            </select>
+            <input type="text" id="fs-path" placeholder="Path (e.g. secrets.txt)" class="block w-full rounded-md border-gray-300 border p-2">
+            <button onclick="testFs()" class="w-full bg-gray-800 text-white py-2 rounded-lg hover:bg-gray-900 transition">Check Policy</button>
+            <div id="fs-result" class="mt-2 p-3 rounded hidden"></div>
+          </div>
+        </div>
+
+        <!-- Net Tester -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border">
+          <h2 class="text-lg font-bold mb-4">Network Policy</h2>
+          <div class="space-y-4">
+            <select id="net-op" class="block w-full rounded-md border-gray-300 border p-2">
+              <option value="CONNECT">CONNECT</option>
+              <option value="DNS">DNS</option>
+            </select>
+            <input type="text" id="net-host" placeholder="Host (e.g. google.com)" class="block w-full rounded-md border-gray-300 border p-2">
+            <input type="number" id="net-port" placeholder="Port (e.g. 443)" class="block w-full rounded-md border-gray-300 border p-2">
+            <button onclick="testNet()" class="w-full bg-gray-800 text-white py-2 rounded-lg hover:bg-gray-900 transition">Check Policy</button>
+            <div id="net-result" class="mt-2 p-3 rounded hidden"></div>
+          </div>
+        </div>
+
+        <!-- Quota Tester -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border">
+          <h2 class="text-lg font-bold mb-4">Quota Tracker</h2>
+          <div id="quota-snapshot" class="mb-4 text-sm font-mono bg-gray-50 p-2 rounded border">
+            Loading quotas...
+          </div>
+          <div class="flex space-x-2">
+            <button onclick="refreshQuotas()" class="flex-1 bg-gray-100 hover:bg-gray-200 py-2 rounded-lg transition text-sm font-semibold">Refresh</button>
+            <button onclick="resetQuotas()" class="flex-1 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 py-2 rounded-lg transition text-sm font-semibold">Reset Quotas</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TOOLS -->
+    <section id="content-tools" class="tab-content hidden">
+      <div class="bg-white p-6 rounded-xl shadow-sm border mb-8">
+        <h2 class="text-lg font-bold mb-4">File Tool</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div>
+            <h3 class="font-semibold mb-2">Read File</h3>
+            <div class="flex space-x-2">
+              <input type="text" id="read-path" placeholder="file.txt" class="flex-1 rounded-md border-gray-300 border p-2">
+              <button onclick="readFile()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">Read</button>
+            </div>
+            <pre id="read-content" class="mt-4 p-3 bg-gray-50 rounded border text-sm max-h-60 overflow-auto hidden"></pre>
+          </div>
+          <div>
+            <h3 class="font-semibold mb-2">Write File</h3>
+            <div class="space-y-2">
+              <input type="text" id="write-path" placeholder="file.txt" class="w-full rounded-md border-gray-300 border p-2">
+              <textarea id="write-content" placeholder="Content..." class="w-full rounded-md border-gray-300 border p-2" rows="3"></textarea>
+              <div class="flex items-center space-x-2">
+                <label class="text-sm">Force Approval:</label>
+                <select id="write-approval" class="rounded border p-1 text-sm">
+                  <option value="">None</option>
+                  <option value="YES">YES</option>
+                  <option value="NO">NO</option>
+                </select>
+                <button onclick="writeFile()" class="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">Write</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- AUDIT -->
+    <section id="content-audit" class="tab-content hidden">
+      <div class="bg-white p-6 rounded-xl shadow-sm border">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-lg font-bold">System Audit Log</h2>
+          <div class="flex items-center space-x-2">
+            <input type="number" id="audit-n" value="20" class="w-16 rounded border p-1 text-sm">
+            <button onclick="loadAudit()" class="bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded text-sm font-semibold transition">Refresh</button>
+          </div>
+        </div>
+        <pre id="audit-log" class="p-4 bg-gray-900 text-green-400 font-mono text-xs rounded-lg overflow-auto leading-relaxed" style="min-height: 400px;"></pre>
+      </div>
+    </section>
+
+    <footer class="mt-12 text-center text-gray-400 text-sm">
+      &copy; 2024 Emma Kernel Project • Version 1.0.0
+    </footer>
+  </div>
+
+  <script>
+    let currentTab = 'dashboard';
+
+    function showTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('tab-active', 'text-blue-600', 'font-bold'));
+
+      document.getElementById('content-' + tabId).classList.remove('hidden');
+      document.getElementById('tab-' + tabId).classList.add('tab-active', 'text-blue-600', 'font-bold');
+      currentTab = tabId;
+
+      if (tabId === 'dashboard') loadStatus();
+      if (tabId === 'audit') loadAudit();
+      if (tabId === 'tester') refreshQuotas();
     }
-  } else {
-    proposalsEl.innerHTML = '<p class="muted">Nessuna proposta aperta.</p>';
-  }
 
-  loadAudit();
-}
+    async function loadStatus() {
+      try {
+        const r = await fetch('/kernel/status');
+        const s = await r.json();
 
-async function approve(id, v) {
-  await fetch('/kernel/proposals/' + id + '/approve', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(v)
-  });
-  load();
-}
+        // Update Badge
+        const badge = document.getElementById('kernel-status-badge');
+        if (s.stopped) {
+          badge.innerHTML = '<span class="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-bold">STOPPED</span>';
+        } else {
+          badge.innerHTML = '<span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-bold">ACTIVE</span>';
+        }
 
-async function doKill() {
-  if (!confirm('Confermi il KILL SWITCH?')) return;
-  await fetch('/kernel/killswitch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-  load();
-}
+        document.getElementById('global-state').textContent = s.state || 'IDLE';
+        document.getElementById('open-proposals-count').textContent = s.openProposals?.length || 0;
 
-// se vuoi attivare resume
+        const list = document.getElementById('proposals-list');
+        list.innerHTML = '';
+        if (s.openProposals && s.openProposals.length > 0) {
+          s.openProposals.forEach(p => {
+            const st = s.proposalStates?.[p.id] || 'UNKNOWN';
+            const card = document.createElement('div');
+            card.className = 'bg-white p-6 rounded-xl border shadow-sm flex justify-between items-center';
+            card.innerHTML = `
+              <div>
+                <h4 class="font-bold text-lg">${p.id} <span class="ml-2 text-xs font-normal bg-blue-100 text-blue-800 px-2 py-0.5 rounded">${st}</span></h4>
+                <p class="text-gray-600 text-sm mt-1">${p.objective}</p>
+              </div>
+              <div class="flex space-x-2">
+                <button onclick="approveProposal('${p.id}', 'YES')" class="bg-green-50 text-green-700 hover:bg-green-100 px-4 py-2 rounded-lg font-bold transition">Approve</button>
+                <button onclick="approveProposal('${p.id}', 'NO')" class="bg-red-50 text-red-700 hover:bg-red-100 px-4 py-2 rounded-lg font-bold transition">Reject</button>
+              </div>
+            `;
+            list.appendChild(card);
+          });
+        } else {
+          list.innerHTML = '<p class="text-gray-500 italic">No open proposals.</p>';
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
 
-async function doResume() {
-  await fetch('/kernel/resume', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-  load();
-}
+    async function submitProposal(e) {
+      e.preventDefault();
+      const p = {
+        id: document.getElementById('prop-id').value,
+        objective: document.getElementById('prop-objective').value,
+        hypothesis: document.getElementById('prop-hypothesis').value
+      };
+      const r = await fetch('/kernel/proposals', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(p)
+      });
+      const res = await r.json();
+      if (r.ok) {
+        alert('Proposal submitted: ' + res.id);
+        e.target.reset();
+        showTab('dashboard');
+      } else {
+        alert('Error: ' + (res.error || res.message));
+      }
+    }
 
+    async function approveProposal(id, decision) {
+      const r = await fetch(`/kernel/proposals/${id}/approve`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(decision)
+      });
+      if (r.ok) loadStatus();
+      else alert('Action failed');
+    }
 
-async function loadAudit() {
-  const r = await fetch('/kernel/audit/tail?n=10');
-  const a = await r.json();
-  document.getElementById('audit').textContent = JSON.stringify(a.lines || a, null, 2);
-}
+    async function doKill() {
+      await fetch('/kernel/killswitch', {method: 'POST'});
+      loadStatus();
+    }
 
-load();
-</script>
+    async function doResume() {
+      await fetch('/kernel/resume', {method: 'POST'});
+      loadStatus();
+    }
+
+    async function reloadPolicies() {
+      const r = await fetch('/kernel/policy/reload', {method: 'POST'});
+      if (r.ok) alert('Policies reloaded');
+    }
+
+    // Policy Tester
+    async function testFs() {
+      const op = document.getElementById('fs-op').value;
+      const path = document.getElementById('fs-path').value;
+      const r = await fetch(`/kernel/policy/check/fs?op=${op}&path=${path}`);
+      const res = await r.json();
+      const el = document.getElementById('fs-result');
+      el.classList.remove('hidden', 'bg-green-100', 'bg-red-100', 'text-green-800', 'text-red-800');
+      el.classList.add(res.effect === 'ALLOW' ? 'bg-green-100' : 'bg-red-100');
+      el.classList.add(res.effect === 'ALLOW' ? 'text-green-800' : 'text-red-800');
+      el.textContent = `${res.effect}: ${res.reason}`;
+      el.classList.remove('hidden');
+    }
+
+    async function testNet() {
+      const op = document.getElementById('net-op').value;
+      const host = document.getElementById('net-host').value;
+      const port = document.getElementById('net-port').value;
+      const r = await fetch(`/kernel/policy/check/net?op=${op}&host=${host}&port=${port}`);
+      const res = await r.json();
+      const el = document.getElementById('net-result');
+      el.classList.remove('hidden', 'bg-green-100', 'bg-red-100', 'text-green-800', 'text-red-800');
+      el.classList.add(res.effect === 'ALLOW' ? 'bg-green-100' : 'bg-red-100');
+      el.classList.add(res.effect === 'ALLOW' ? 'text-green-800' : 'text-red-800');
+      el.textContent = `${res.effect}: ${res.reason}`;
+      el.classList.remove('hidden');
+    }
+
+    async function refreshQuotas() {
+      const r = await fetch('/kernel/policy/quotas/snapshot');
+      const res = await r.json();
+      document.getElementById('quota-snapshot').textContent = JSON.stringify(res, null, 2);
+    }
+
+    async function resetQuotas() {
+      await fetch('/kernel/policy/quotas/reset', {method: 'POST'});
+      refreshQuotas();
+    }
+
+    // Tools
+    async function readFile() {
+      const path = document.getElementById('read-path').value;
+      const r = await fetch(`/kernel/tools/read?path=${path}`);
+      const res = await r.json();
+      const el = document.getElementById('read-content');
+      el.classList.remove('hidden');
+      if (r.ok) el.textContent = res.content;
+      else el.textContent = `Error: ${res.error || 'Failed to read'}`;
+    }
+
+    async function writeFile() {
+      const path = document.getElementById('write-path').value;
+      const content = document.getElementById('write-content').value;
+      const approval = document.getElementById('write-approval').value;
+      const r = await fetch('/kernel/tools/write', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({path, content, approval: approval || null})
+      });
+      const res = await r.json();
+      if (r.ok) alert('File written successfully');
+      else alert('Error: ' + (res.error || res.message));
+    }
+
+    async function loadAudit() {
+      const n = document.getElementById('audit-n').value;
+      const r = await fetch(`/kernel/audit/tail?n=${n}`);
+      const res = await r.json();
+      document.getElementById('audit-log').textContent = (res.lines || []).join('\n');
+    }
+
+    // Init
+    showTab('dashboard');
+    setInterval(loadStatus, 5000);
+  </script>
 </body>
 </html>
