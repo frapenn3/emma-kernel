@@ -96,6 +96,20 @@
             <label class="block text-sm font-medium text-gray-700">Hypothesis</label>
             <textarea id="prop-hypothesis" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2" rows="2"></textarea>
           </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Created By</label>
+              <input type="text" id="prop-created-by" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2" placeholder="console">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Priority</label>
+              <input type="number" id="prop-priority" min="0" max="5" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2" placeholder="0-5">
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Tags</label>
+            <input type="text" id="prop-tags" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2" placeholder="backend, policy, ui">
+          </div>
           <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition">Submit Proposal</button>
         </form>
       </div>
@@ -256,7 +270,10 @@
       const p = {
         id: document.getElementById('prop-id').value,
         objective: document.getElementById('prop-objective').value,
-        hypothesis: document.getElementById('prop-hypothesis').value
+        hypothesis: document.getElementById('prop-hypothesis').value,
+        createdBy: document.getElementById('prop-created-by').value || null,
+        priority: document.getElementById('prop-priority').value ? Number(document.getElementById('prop-priority').value) : null,
+        tags: tagsFromInput(document.getElementById('prop-tags').value)
       };
       const r = await fetch('/kernel/proposals', {
         method: 'POST',
@@ -530,6 +547,13 @@
       hypothesis.className = 'text-sm mb-4';
       hypothesis.textContent = proposal.hypothesis || 'No hypothesis.';
 
+      const meta = document.createElement('div');
+      meta.className = 'flex flex-wrap gap-2 mb-4 text-xs';
+      meta.appendChild(metaBadge('Created by', proposal.createdBy || 'n/a'));
+      meta.appendChild(metaBadge('Priority', proposal.priority == null ? 'n/a' : String(proposal.priority)));
+      meta.appendChild(metaBadge('Version', String(proposal.version || 0)));
+      (proposal.tags || []).forEach(tag => meta.appendChild(metaBadge('Tag', tag)));
+
       const actions = document.createElement('div');
       actions.className = 'flex flex-wrap gap-2 mb-5';
       stateActions(proposal).forEach(action => actions.appendChild(action));
@@ -556,6 +580,7 @@
 
       detail.appendChild(title);
       detail.appendChild(hypothesis);
+      detail.appendChild(meta);
       detail.appendChild(actions);
       detail.appendChild(auditTitle);
       detail.appendChild(auditList);
@@ -618,6 +643,20 @@
         return [actionButton('Complete', 'bg-green-50 text-green-700 hover:bg-green-100', () => completeProposal(id))];
       }
       return [];
+    }
+
+    function metaBadge(label, value) {
+      const badge = document.createElement('span');
+      badge.className = 'bg-gray-100 text-gray-700 px-2 py-1 rounded';
+      badge.textContent = `${label}: ${value}`;
+      return badge;
+    }
+
+    function tagsFromInput(value) {
+      return value
+        .split(',')
+        .map(tag => tag.trim())
+        .filter(tag => tag.length > 0);
     }
 
     function toast(message, type) {

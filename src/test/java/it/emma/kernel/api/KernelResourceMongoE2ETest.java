@@ -197,4 +197,134 @@ class KernelResourceMongoE2ETest {
         .statusCode(200)
         .body("id", equalTo(proposalId));
   }
+
+  @Test
+  void lifecycleEndpointsRejectInvalidRequests() {
+    String proposalId = "imp-" + UUID.randomUUID();
+
+    given()
+        .contentType("application/json")
+        .body("""
+            {
+              "id": "%s",
+              "objective": "Validate lifecycle edge cases"
+            }
+            """.formatted(proposalId))
+    .when()
+        .post("/kernel/proposals")
+    .then()
+        .statusCode(200);
+
+    given()
+        .contentType("application/json")
+        .body("{}")
+    .when()
+        .post("/kernel/proposals/{id}/advance", proposalId)
+    .then()
+        .statusCode(400)
+        .body("code", equalTo("MISSING_TARGET_STATE"));
+
+    given()
+        .contentType("application/json")
+        .body("{\"target\":\"NOPE\"}")
+    .when()
+        .post("/kernel/proposals/{id}/advance", proposalId)
+    .then()
+        .statusCode(400)
+        .body("code", equalTo("INVALID_STATE"));
+
+    given()
+        .contentType("application/json")
+        .body("{\"target\":\"DONE\"}")
+    .when()
+        .post("/kernel/proposals/{id}/advance", proposalId)
+    .then()
+        .statusCode(409)
+        .body("code", equalTo("INVALID_TRANSITION"));
+
+    given()
+        .contentType("application/json")
+        .body("\"YES\"")
+    .when()
+        .post("/kernel/proposals/{id}/approve", proposalId)
+    .then()
+        .statusCode(200);
+
+    given()
+        .contentType("application/json")
+        .body("\"YES\"")
+    .when()
+        .post("/kernel/proposals/{id}/approve", proposalId)
+    .then()
+        .statusCode(409)
+        .body("code", equalTo("INVALID_TRANSITION"));
+  }
+
+  @Test
+  void auditSearchFiltersBySubjectAndEvent() {
+    String proposalId = "imp-" + UUID.randomUUID();
+
+    given()
+        .contentType("application/json")
+        .body("""
+            {
+              "id": "%s",
+              "objective": "Audit filtering"
+            }
+            """.formatted(proposalId))
+    .when()
+        .post("/kernel/proposals")
+    .then()
+        .statusCode(200);
+
+    given()
+        .queryParam("subject", proposalId)
+        .queryParam("event", "PROPOSE")
+    .when()
+        .get("/kernel/audit")
+    .then()
+        .statusCode(200)
+        .body("entries", hasSize(1))
+        .body("entries[0].subject", equalTo(proposalId))
+        .body("entries[0].event", equalTo("PROPOSE"));
+  }
+
+  @Test
+  void completeIsAllowedOnlyFromTerminalLifecycleStates() {
+    String proposalId = "imp-" + UUID.randomUUID();
+
+    given()
+        .contentType("application/json")
+        .body("""
+            {
+              "id": "%s",
+              "objective": "Completion edge cases"
+            }
+            """.formatted(proposalId))
+    .when()
+        .post("/kernel/proposals")
+    .then()
+        .statusCode(200);
+
+    given()
+    .when()
+        .post("/kernel/proposals/{id}/complete", proposalId)
+    .then()
+        .statusCode(409)
+        .body("code", equalTo("INVALID_TRANSITION"));
+
+    given()
+    .when()
+        .post("/kernel/proposals/{id}/revert", proposalId)
+    .then()
+        .statusCode(200)
+        .body("state", equalTo("REVERT"));
+
+    given()
+    .when()
+        .post("/kernel/proposals/{id}/complete", proposalId)
+    .then()
+        .statusCode(200)
+        .body("state", equalTo("DONE"));
+  }
 }
