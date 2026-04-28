@@ -8,14 +8,65 @@ Backend Quarkus per gestione proposte, policy e strumenti kernel.
 mvn quarkus:dev
 ```
 
+Su un PC temporaneo senza JDK 21/Mongo locale configurati, usa il runtime isolato nel progetto:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\.codex\start-dev.ps1
+```
+
+Questo avvia:
+
+- JDK 21 portatile da `.codex/jdks/jdk-21`
+- Maven con settings locale `.codex/maven-settings.xml`
+- Mongo in-memory su `localhost:27017`
+- Quarkus dev su `http://localhost:8080`
+
+Sul PC fisso, se Mongo locale e JDK 21 sono già configurati, puoi continuare a usare il normale `mvn quarkus:dev`.
+
+Console:
+
+- `http://localhost:8080/console/`
+
+Test con runtime isolato:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\.codex\mvn-jdk21.ps1 -q test
+```
+
 ## Endpoint principali
 
 - `GET /kernel/status`
 - `POST /kernel/proposals`
+- `GET /kernel/proposals`
+- `GET /kernel/proposals?state=PROPOSE`
+- `GET /kernel/proposals/{id}`
 - `POST /kernel/proposals/{id}/approve` (body: `"YES"` o `"NO"`)
+- `POST /kernel/proposals/{id}/advance` (body: `{"target":"BUILD"}`)
+- `POST /kernel/proposals/{id}/revert`
+- `POST /kernel/proposals/{id}/complete`
 - `POST /kernel/killswitch`
 - `POST /kernel/resume`
+- `GET /kernel/audit?subject=...&event=...&limit=50`
+- `GET /kernel/proposals/{id}/audit`
 - `GET /kernel/audit/tail?n=20`
+
+## Proposal lifecycle
+
+Transizioni consentite:
+
+```text
+PROPOSE -> RESEARCH | REVERT
+RESEARCH -> BUILD | REVIEW | REVERT
+BUILD -> TEST | REVIEW | REVERT
+TEST -> REVIEW | REVERT
+REVIEW -> APPLY_WAIT | REVERT
+APPLY_WAIT -> APPLY | REVERT
+APPLY -> MONITOR | REVERT
+MONITOR -> DONE | REVERT
+REVERT -> DONE
+```
+
+Le transizioni non consentite restituiscono `409 INVALID_TRANSITION`.
 
 ## Policy
 

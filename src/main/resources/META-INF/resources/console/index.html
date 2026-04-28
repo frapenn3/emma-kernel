@@ -4,13 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Emma Kernel — Control Console</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/console/console.css">
   <style>
     [v-cloak] { display: none; }
     .tab-active { border-bottom-width: 2px; border-color: #2563eb; color: #2563eb; }
   </style>
 </head>
 <body class="bg-gray-50 text-gray-900 min-h-screen">
+  <div id="toast" class="fixed top-4 right-4 hidden px-4 py-3 rounded-lg shadow-lg text-sm font-semibold z-50"></div>
   <div id="app" class="max-w-6xl mx-auto px-4 py-8">
     <header class="flex justify-between items-center mb-8 border-b pb-4">
       <div>
@@ -52,6 +53,29 @@
       <h2 class="text-xl font-bold mb-4">Active Proposals</h2>
       <div id="proposals-list" class="space-y-4">
         <p class="text-gray-500 italic">Loading proposals...</p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-10">
+        <div>
+          <h2 class="text-xl font-bold mb-4">All Proposals</h2>
+          <select id="proposal-state-filter" onchange="renderFilteredProposals()" class="mb-3 block w-full rounded-md border-gray-300 border p-2">
+            <option value="">All states</option>
+            <option value="PROPOSE">PROPOSE</option>
+            <option value="RESEARCH">RESEARCH</option>
+            <option value="BUILD">BUILD</option>
+            <option value="TEST">TEST</option>
+            <option value="REVIEW">REVIEW</option>
+            <option value="APPLY_WAIT">APPLY_WAIT</option>
+            <option value="APPLY">APPLY</option>
+            <option value="MONITOR">MONITOR</option>
+            <option value="REVERT">REVERT</option>
+            <option value="DONE">DONE</option>
+          </select>
+          <div id="all-proposals-list" class="space-y-3">
+            <p class="text-gray-500 italic">Loading proposals...</p>
+          </div>
+        </div>
+        <div id="proposal-detail" class="bg-white p-6 rounded-xl shadow-sm border hidden"></div>
       </div>
     </section>
 
@@ -178,6 +202,7 @@
 
   <script>
     let currentTab = 'dashboard';
+    let allProposalSummaries = [];
 
     function showTab(tabId) {
       document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
@@ -213,23 +238,14 @@
         if (s.openProposals && s.openProposals.length > 0) {
           s.openProposals.forEach(p => {
             const st = s.proposalStates?.[p.id] || 'UNKNOWN';
-            const card = document.createElement('div');
-            card.className = 'bg-white p-6 rounded-xl border shadow-sm flex justify-between items-center';
-            card.innerHTML = `
-              <div>
-                <h4 class="font-bold text-lg">${p.id} <span class="ml-2 text-xs font-normal bg-blue-100 text-blue-800 px-2 py-0.5 rounded">${st}</span></h4>
-                <p class="text-gray-600 text-sm mt-1">${p.objective}</p>
-              </div>
-              <div class="flex space-x-2">
-                <button onclick="approveProposal('${p.id}', 'YES')" class="bg-green-50 text-green-700 hover:bg-green-100 px-4 py-2 rounded-lg font-bold transition">Approve</button>
-                <button onclick="approveProposal('${p.id}', 'NO')" class="bg-red-50 text-red-700 hover:bg-red-100 px-4 py-2 rounded-lg font-bold transition">Reject</button>
-              </div>
-            `;
-            list.appendChild(card);
+            list.appendChild(proposalCard(p, st));
           });
         } else {
           list.innerHTML = '<p class="text-gray-500 italic">No open proposals.</p>';
         }
+
+        allProposalSummaries = s.allProposals || [];
+        renderFilteredProposals();
       } catch (e) {
         console.error(e);
       }
@@ -247,27 +263,67 @@
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(p)
       });
-      const res = await r.json();
+      const res = await parseResponse(r);
       if (r.ok) {
-        alert('Proposal submitted: ' + res.id);
+        toast('Proposal submitted: ' + res.id, 'success');
         e.target.reset();
         showTab('dashboard');
       } else {
-        alert('Error: ' + (res.error || res.message));
+        toast('Error: ' + errorMessage(res, r), 'error');
       }
     }
 
     async function approveProposal(id, decision) {
-      const r = await fetch(`/kernel/proposals/${id}/approve`, {
+      const r = await fetch(`/kernel/proposals/${encodeURIComponent(id)}/approve`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(decision)
       });
-      if (r.ok) loadStatus();
-      else alert('Action failed');
+      if (r.ok) {
+        await loadStatus();
+        await loadProposalDetail(id);
+      }
+      else toast('Action failed: ' + errorMessage(await parseResponse(r), r), 'error');
+    }
+
+    async function advanceProposal(id, target) {
+      const r = await fetch(`/kernel/proposals/${encodeURIComponent(id)}/advance`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({target})
+      });
+      if (r.ok) {
+        await loadStatus();
+        await loadProposalDetail(id);
+      } else {
+        toast('Action failed: ' + errorMessage(await parseResponse(r), r), 'error');
+      }
+    }
+
+    async function revertProposal(id) {
+      if (!confirm('Revert this proposal?')) return;
+      const r = await fetch(`/kernel/proposals/${encodeURIComponent(id)}/revert`, {method: 'POST'});
+      if (r.ok) {
+        await loadStatus();
+        await loadProposalDetail(id);
+      } else {
+        toast('Action failed: ' + errorMessage(await parseResponse(r), r), 'error');
+      }
+    }
+
+    async function completeProposal(id) {
+      if (!confirm('Complete this proposal?')) return;
+      const r = await fetch(`/kernel/proposals/${encodeURIComponent(id)}/complete`, {method: 'POST'});
+      if (r.ok) {
+        await loadStatus();
+        await loadProposalDetail(id);
+      } else {
+        toast('Action failed: ' + errorMessage(await parseResponse(r), r), 'error');
+      }
     }
 
     async function doKill() {
+      if (!confirm('Stop the kernel?')) return;
       await fetch('/kernel/killswitch', {method: 'POST'});
       loadStatus();
     }
@@ -279,20 +335,21 @@
 
     async function reloadPolicies() {
       const r = await fetch('/kernel/policy/reload', {method: 'POST'});
-      if (r.ok) alert('Policies reloaded');
+      if (r.ok) toast('Policies reloaded', 'success');
     }
 
     // Policy Tester
     async function testFs() {
       const op = document.getElementById('fs-op').value;
       const path = document.getElementById('fs-path').value;
-      const r = await fetch(`/kernel/policy/check/fs?op=${op}&path=${path}`);
-      const res = await r.json();
+      const params = new URLSearchParams({op, path});
+      const r = await fetch(`/kernel/policy/check/fs?${params}`);
+      const res = await parseResponse(r);
       const el = document.getElementById('fs-result');
       el.classList.remove('hidden', 'bg-green-100', 'bg-red-100', 'text-green-800', 'text-red-800');
       el.classList.add(res.effect === 'ALLOW' ? 'bg-green-100' : 'bg-red-100');
       el.classList.add(res.effect === 'ALLOW' ? 'text-green-800' : 'text-red-800');
-      el.textContent = `${res.effect}: ${res.reason}`;
+      el.textContent = r.ok ? `${res.effect}: ${res.reason}` : `Error: ${errorMessage(res, r)}`;
       el.classList.remove('hidden');
     }
 
@@ -300,13 +357,15 @@
       const op = document.getElementById('net-op').value;
       const host = document.getElementById('net-host').value;
       const port = document.getElementById('net-port').value;
-      const r = await fetch(`/kernel/policy/check/net?op=${op}&host=${host}&port=${port}`);
-      const res = await r.json();
+      const params = new URLSearchParams({op, host});
+      if (port) params.set('port', port);
+      const r = await fetch(`/kernel/policy/check/net?${params}`);
+      const res = await parseResponse(r);
       const el = document.getElementById('net-result');
       el.classList.remove('hidden', 'bg-green-100', 'bg-red-100', 'text-green-800', 'text-red-800');
       el.classList.add(res.effect === 'ALLOW' ? 'bg-green-100' : 'bg-red-100');
       el.classList.add(res.effect === 'ALLOW' ? 'text-green-800' : 'text-red-800');
-      el.textContent = `${res.effect}: ${res.reason}`;
+      el.textContent = r.ok ? `${res.effect}: ${res.reason}` : `Error: ${errorMessage(res, r)}`;
       el.classList.remove('hidden');
     }
 
@@ -324,12 +383,13 @@
     // Tools
     async function readFile() {
       const path = document.getElementById('read-path').value;
-      const r = await fetch(`/kernel/tools/read?path=${path}`);
-      const res = await r.json();
+      const params = new URLSearchParams({path});
+      const r = await fetch(`/kernel/tools/read?${params}`);
+      const res = await parseResponse(r);
       const el = document.getElementById('read-content');
       el.classList.remove('hidden');
       if (r.ok) el.textContent = res.content;
-      else el.textContent = `Error: ${res.error || 'Failed to read'}`;
+      else el.textContent = `Error: ${errorMessage(res, r)}`;
     }
 
     async function writeFile() {
@@ -341,15 +401,247 @@
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({path, content, approval: approval || null})
       });
-      const res = await r.json();
-      if (r.ok) alert('File written successfully');
-      else alert('Error: ' + (res.error || res.message));
+      const res = await parseResponse(r);
+      if (r.ok) toast('File written successfully', 'success');
+      else toast('Error: ' + errorMessage(res, r), 'error');
+    }
+
+    async function parseResponse(response) {
+      const text = await response.text();
+      if (!text) return {};
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        return {message: text};
+      }
+    }
+
+    function errorMessage(payload, response) {
+      return payload.error || payload.message || payload.code || `HTTP ${response.status}`;
+    }
+
+    function proposalCard(p, state) {
+      const card = document.createElement('div');
+      card.className = 'bg-white p-6 rounded-xl border shadow-sm flex justify-between items-center gap-4';
+
+      const details = document.createElement('div');
+      const title = document.createElement('h4');
+      title.className = 'font-bold text-lg';
+      title.appendChild(document.createTextNode(p.id || 'unknown'));
+
+      const badge = document.createElement('span');
+      badge.className = 'ml-2 text-xs font-normal bg-blue-100 text-blue-800 px-2 py-0.5 rounded';
+      badge.textContent = state;
+      title.appendChild(badge);
+
+      const objective = document.createElement('p');
+      objective.className = 'text-gray-600 text-sm mt-1';
+      objective.textContent = p.objective || '';
+
+      details.appendChild(title);
+      details.appendChild(objective);
+
+      const actions = document.createElement('div');
+      actions.className = 'flex space-x-2 shrink-0';
+      actions.appendChild(actionButton('Approve', 'bg-green-50 text-green-700 hover:bg-green-100', () => approveProposal(p.id, 'YES')));
+      actions.appendChild(actionButton('Reject', 'bg-red-50 text-red-700 hover:bg-red-100', () => approveProposal(p.id, 'NO')));
+      actions.appendChild(actionButton('Details', 'bg-gray-50 text-gray-700 hover:bg-gray-100', () => loadProposalDetail(p.id)));
+
+      card.appendChild(details);
+      card.appendChild(actions);
+      return card;
+    }
+
+    function renderFilteredProposals() {
+      const selected = document.getElementById('proposal-state-filter')?.value || '';
+      const proposals = selected
+        ? allProposalSummaries.filter(p => p.state === selected)
+        : allProposalSummaries;
+      renderAllProposals(proposals);
+    }
+
+    function renderAllProposals(proposals) {
+      const list = document.getElementById('all-proposals-list');
+      list.innerHTML = '';
+      if (!proposals.length) {
+        list.innerHTML = '<p class="text-gray-500 italic">No proposals yet.</p>';
+        return;
+      }
+
+      proposals.forEach(p => {
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'w-full bg-white p-4 rounded-xl border shadow-sm text-left hover:border-blue-300 transition flex justify-between gap-4';
+        row.addEventListener('click', () => loadProposalDetail(p.id));
+
+        const text = document.createElement('div');
+        const title = document.createElement('p');
+        title.className = 'font-bold text-sm';
+        title.textContent = p.id;
+        const objective = document.createElement('p');
+        objective.className = 'text-gray-600 text-sm mt-1';
+        objective.textContent = p.objective || '';
+        text.appendChild(title);
+        text.appendChild(objective);
+
+        const badge = document.createElement('span');
+        badge.className = 'text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded h-fit';
+        badge.textContent = p.state || 'UNKNOWN';
+
+        row.appendChild(text);
+        row.appendChild(badge);
+        list.appendChild(row);
+      });
+    }
+
+    async function loadProposalDetail(id) {
+      const detail = document.getElementById('proposal-detail');
+      const proposalResponse = await fetch(`/kernel/proposals/${encodeURIComponent(id)}`);
+      const proposal = await parseResponse(proposalResponse);
+      if (!proposalResponse.ok) {
+        toast('Error: ' + errorMessage(proposal, proposalResponse), 'error');
+        return;
+      }
+
+      const auditResponse = await fetch(`/kernel/proposals/${encodeURIComponent(id)}/audit?${new URLSearchParams({limit: 20})}`);
+      const audit = await parseResponse(auditResponse);
+      detail.innerHTML = '';
+      detail.classList.remove('hidden');
+
+      const title = document.createElement('div');
+      title.className = 'flex justify-between items-start gap-4 mb-4';
+      const headingWrap = document.createElement('div');
+      const heading = document.createElement('h2');
+      heading.className = 'text-lg font-bold';
+      heading.textContent = proposal.id;
+      const objective = document.createElement('p');
+      objective.className = 'text-gray-600 text-sm mt-1';
+      objective.textContent = proposal.objective || '';
+      headingWrap.appendChild(heading);
+      headingWrap.appendChild(objective);
+
+      const badge = document.createElement('span');
+      badge.className = 'text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded';
+      badge.textContent = proposal.state || 'UNKNOWN';
+      title.appendChild(headingWrap);
+      title.appendChild(badge);
+
+      const hypothesis = document.createElement('p');
+      hypothesis.className = 'text-sm mb-4';
+      hypothesis.textContent = proposal.hypothesis || 'No hypothesis.';
+
+      const actions = document.createElement('div');
+      actions.className = 'flex flex-wrap gap-2 mb-5';
+      stateActions(proposal).forEach(action => actions.appendChild(action));
+
+      const auditTitle = document.createElement('h3');
+      auditTitle.className = 'font-bold text-sm mb-2';
+      auditTitle.textContent = 'Audit';
+      const auditList = document.createElement('div');
+      auditList.className = 'space-y-2 text-xs';
+      const entries = audit.entries || [];
+      if (!entries.length) {
+        const empty = document.createElement('p');
+        empty.className = 'text-gray-500 italic';
+        empty.textContent = 'No audit entries.';
+        auditList.appendChild(empty);
+      } else {
+        entries.forEach(entry => {
+          const line = document.createElement('div');
+          line.className = 'bg-gray-50 border rounded p-2 font-mono';
+          line.textContent = `${entry.ts || ''} [${entry.event || ''}] ${entry.detail || ''}`;
+          auditList.appendChild(line);
+        });
+      }
+
+      detail.appendChild(title);
+      detail.appendChild(hypothesis);
+      detail.appendChild(actions);
+      detail.appendChild(auditTitle);
+      detail.appendChild(auditList);
+    }
+
+    function stateActions(proposal) {
+      const id = proposal.id;
+      const state = proposal.state;
+      if (state === 'PROPOSE') {
+        return [
+          actionButton('Approve', 'bg-green-50 text-green-700 hover:bg-green-100', () => approveProposal(id, 'YES')),
+          actionButton('Reject', 'bg-red-50 text-red-700 hover:bg-red-100', () => approveProposal(id, 'NO'))
+        ];
+      }
+      if (state === 'RESEARCH') {
+        return [
+          actionButton('Build', 'bg-blue-50 text-blue-700 hover:bg-blue-100', () => advanceProposal(id, 'BUILD')),
+          actionButton('Review', 'bg-gray-50 text-gray-700 hover:bg-gray-100', () => advanceProposal(id, 'REVIEW')),
+          actionButton('Revert', 'bg-red-50 text-red-700 hover:bg-red-100', () => revertProposal(id))
+        ];
+      }
+      if (state === 'BUILD') {
+        return [
+          actionButton('Test', 'bg-blue-50 text-blue-700 hover:bg-blue-100', () => advanceProposal(id, 'TEST')),
+          actionButton('Review', 'bg-gray-50 text-gray-700 hover:bg-gray-100', () => advanceProposal(id, 'REVIEW')),
+          actionButton('Revert', 'bg-red-50 text-red-700 hover:bg-red-100', () => revertProposal(id))
+        ];
+      }
+      if (state === 'TEST') {
+        return [
+          actionButton('Review', 'bg-blue-50 text-blue-700 hover:bg-blue-100', () => advanceProposal(id, 'REVIEW')),
+          actionButton('Revert', 'bg-red-50 text-red-700 hover:bg-red-100', () => revertProposal(id))
+        ];
+      }
+      if (state === 'REVIEW') {
+        return [
+          actionButton('Apply Wait', 'bg-blue-50 text-blue-700 hover:bg-blue-100', () => advanceProposal(id, 'APPLY_WAIT')),
+          actionButton('Revert', 'bg-red-50 text-red-700 hover:bg-red-100', () => revertProposal(id))
+        ];
+      }
+      if (state === 'APPLY_WAIT') {
+        return [
+          actionButton('Apply', 'bg-blue-50 text-blue-700 hover:bg-blue-100', () => advanceProposal(id, 'APPLY')),
+          actionButton('Revert', 'bg-red-50 text-red-700 hover:bg-red-100', () => revertProposal(id))
+        ];
+      }
+      if (state === 'APPLY') {
+        return [
+          actionButton('Monitor', 'bg-blue-50 text-blue-700 hover:bg-blue-100', () => advanceProposal(id, 'MONITOR')),
+          actionButton('Revert', 'bg-red-50 text-red-700 hover:bg-red-100', () => revertProposal(id))
+        ];
+      }
+      if (state === 'MONITOR') {
+        return [
+          actionButton('Complete', 'bg-green-50 text-green-700 hover:bg-green-100', () => completeProposal(id)),
+          actionButton('Revert', 'bg-red-50 text-red-700 hover:bg-red-100', () => revertProposal(id))
+        ];
+      }
+      if (state === 'REVERT') {
+        return [actionButton('Complete', 'bg-green-50 text-green-700 hover:bg-green-100', () => completeProposal(id))];
+      }
+      return [];
+    }
+
+    function toast(message, type) {
+      const el = document.getElementById('toast');
+      el.textContent = message;
+      el.className = `fixed top-4 right-4 px-4 py-3 rounded-lg shadow-lg text-sm font-semibold z-50 ${type === 'error' ? 'bg-red-600 text-white' : 'bg-green-600 text-white'}`;
+      el.classList.remove('hidden');
+      setTimeout(() => el.classList.add('hidden'), 3500);
+    }
+
+    function actionButton(label, colors, handler) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `${colors} px-4 py-2 rounded-lg font-bold transition`;
+      button.textContent = label;
+      button.addEventListener('click', handler);
+      return button;
     }
 
     async function loadAudit() {
       const n = document.getElementById('audit-n').value;
-      const r = await fetch(`/kernel/audit/tail?n=${n}`);
-      const res = await r.json();
+      const params = new URLSearchParams({n});
+      const r = await fetch(`/kernel/audit/tail?${params}`);
+      const res = await parseResponse(r);
       document.getElementById('audit-log').textContent = (res.lines || []).join('\n');
     }
 

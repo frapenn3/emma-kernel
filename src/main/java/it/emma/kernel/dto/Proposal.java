@@ -1,11 +1,21 @@
 package it.emma.kernel.dto;
 
+import java.util.Date;
 import java.util.List;
 
 public class Proposal {
 	public String id;
 	public String objective;
 	public String hypothesis;
+	public String state;
+	public String createdBy;
+	public String lastTransitionReason;
+	public Date createdAt;
+	public Date updatedAt;
+	public Date closedAt;
+	public long version;
+	public List<String> tags;
+	public Integer priority;
 	public List<String> scope;
 	public List<String> risks;
 	public List<PlanItem> plan;

@@ -20,6 +20,8 @@ public class AuditDoc {
   public String event;    // es: PROPOSE, APPROVAL, KILL, RESUME, ...
   public String subject;  // es: proposalId ("imp-001") oppure "global"
   public String detail;   // es: "submitted", "YES", "NO", "manual"
+  public String fromState;
+  public String toState;
 
   public static AuditDoc of(String event, String subject, String detail) {
     AuditDoc d = new AuditDoc();
@@ -28,6 +30,13 @@ public class AuditDoc {
     d.event   = event;
     d.subject = subject;
     d.detail  = detail;
+    return d;
+  }
+
+  public static AuditDoc transition(String event, String subject, String detail, String fromState, String toState) {
+    AuditDoc d = of(event, subject, detail);
+    d.fromState = fromState;
+    d.toState = toState;
     return d;
   }
 }

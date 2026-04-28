@@ -6,6 +6,7 @@ import java.util.Map;
 public class KernelStatus {
   public ImprovementFSM.State state;
   public List<Proposal> openProposals;
+  public List<ProposalSummary> allProposals;
   public Map<String, it.emma.kernel.core.ImprovementFSM.State> proposalStates;
   public boolean stopped;
 }

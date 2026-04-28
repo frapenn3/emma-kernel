@@ -64,8 +64,27 @@ class KernelResourceMongoE2ETest {
     .then()
         .statusCode(200)
         .body("openProposals", hasSize(1))
+        .body("allProposals", hasSize(1))
         .body("openProposals[0].id", equalTo(proposalId))
         .body("proposalStates.%s".formatted(proposalId), equalTo("PROPOSE"));
+
+    given()
+    .when()
+        .get("/kernel/proposals")
+    .then()
+        .statusCode(200)
+        .body("proposals", hasSize(1))
+        .body("proposals[0].id", equalTo(proposalId))
+        .body("proposals[0].state", equalTo("PROPOSE"));
+
+    given()
+    .when()
+        .get("/kernel/proposals/{id}", proposalId)
+    .then()
+        .statusCode(200)
+        .body("id", equalTo(proposalId))
+        .body("createdAt", notNullValue())
+        .body("updatedAt", notNullValue());
 
     given()
         .contentType("application/json")
@@ -81,7 +100,45 @@ class KernelResourceMongoE2ETest {
         .get("/kernel/status")
     .then()
         .statusCode(200)
+        .body("openProposals", hasSize(0))
+        .body("allProposals", hasSize(1))
         .body("proposalStates.%s".formatted(proposalId), equalTo("RESEARCH"));
+
+    given()
+        .queryParam("state", "PROPOSE")
+    .when()
+        .get("/kernel/proposals")
+    .then()
+        .statusCode(200)
+        .body("proposals", hasSize(0));
+
+    given()
+        .contentType("application/json")
+        .body("{\"target\":\"BUILD\"}")
+    .when()
+        .post("/kernel/proposals/{id}/advance", proposalId)
+    .then()
+        .statusCode(200)
+        .body("from", equalTo("RESEARCH"))
+        .body("state", equalTo("BUILD"));
+
+    given()
+        .contentType("application/json")
+        .body("{\"target\":\"DONE\"}")
+    .when()
+        .post("/kernel/proposals/{id}/advance", proposalId)
+    .then()
+        .statusCode(409)
+        .body("code", equalTo("INVALID_TRANSITION"));
+
+    given()
+        .queryParam("limit", 20)
+    .when()
+        .get("/kernel/proposals/{id}/audit", proposalId)
+    .then()
+        .statusCode(200)
+        .body("entries", hasSize(3))
+        .body("entries[0].subject", equalTo(proposalId));
 
     given()
         .queryParam("n", 10)
@@ -89,9 +146,9 @@ class KernelResourceMongoE2ETest {
         .get("/kernel/audit/tail")
     .then()
         .statusCode(200)
-        .body("lines", hasSize(2))
+        .body("lines", hasSize(3))
         .body("lines[0]", notNullValue())
-        .body("lines[1]", notNullValue());
+        .body("lines[2]", notNullValue());
   }
 
   @Test

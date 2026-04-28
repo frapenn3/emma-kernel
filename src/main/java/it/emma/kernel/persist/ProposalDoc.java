@@ -2,6 +2,7 @@ package it.emma.kernel.persist;
 
 import io.quarkus.mongodb.panache.common.MongoEntity;
 import org.bson.codecs.pojo.annotations.BsonId;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
@@ -26,4 +27,12 @@ public class ProposalDoc {
 
   // stato corrente della FSM per la proposta
   public String state; // es. "PROPOSE", "RESEARCH", ...
+  public String createdBy;
+  public String lastTransitionReason;
+  public Date createdAt;
+  public Date updatedAt;
+  public Date closedAt;
+  public long version;
+  public List<String> tags;
+  public Integer priority;
 }

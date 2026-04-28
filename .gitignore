@@ -22,6 +22,12 @@ Thumbs.db
 
 # === Local runtime data ===
 /work/
+/.codex/m2/
+/.codex/jdks/
+/.codex/downloads/
+/.codex/*classpath.txt
+/.codex/*dev.log
+/.codex/*dev.err.log
 
 # === Maven wrapper ===
 .mvn/
